@@ -273,15 +273,19 @@ th,td{font-size:11px;padding:8px}.bottom-inner{grid-template-columns:repeat(3,1f
 <input type="hidden" id="editProductId" value="">
 <label>Jina la bidhaa</label>
 <input id="productName" placeholder="Mfano: Soda">
-<label>Bei ya kununua kwa moja</label>
-<input id="buyPrice" type="number" placeholder="Mfano: 800">
-<label>Bei ya kuuza kwa moja</label>
-<input id="sellPrice" type="number" placeholder="Mfano: 1200">
-<label>Kiasi</label>
-<input id="qty" type="number" placeholder="Mfano: 20">
+<label>Unit ya bidhaa</label>
+<select id="productUnit">
+<option value="pc">Piece (pc)</option><option value="kg">Kilogram (KG)</option><option value="g">Gram (g)</option><option value="l">Litre (L)</option><option value="ml">Millilitre (ml)</option><option value="m">Meter (m)</option><option value="box">Box</option><option value="carton">Carton</option><option value="dozen">Dozen</option><option value="packet">Packet</option><option value="bag">Bag</option><option value="other">Other</option>
+</select>
+<label>Bei ya kununua kwa unit</label>
+<input id="buyPrice" type="number" step="0.01" min="0" placeholder="Mfano: 2000">
+<label>Bei ya kuuza kwa unit</label>
+<input id="sellPrice" type="number" step="0.01" min="0" placeholder="Mfano: 2500">
+<label>Stock / Kiasi</label>
+<input id="qty" type="number" step="0.001" min="0" placeholder="Mfano: 100">
 <label>Kiwango cha onyo (stock low)</label>
-<input id="lowThreshold" type="number" placeholder="Mfano: 5" value="5">
-<p style="color:var(--muted);font-size:12px;margin:0 0 10px">💡 Ikiwa jina lipo tayari (mfano Soda), stock itaongezwa — haitaji kuandika mara mbili.</p>
+<input id="lowThreshold" type="number" step="0.001" min="0" placeholder="Mfano: 10" value="5">
+<p style="color:var(--muted);font-size:12px;margin:0 0 10px">💡 Mfano: Mchele → Unit KG → Stock 100 KG → Bei TZS 2,500/KG. Unaweza kuuza 2.5 KG, 0.5 KG, n.k.</p>
 <button class="primary" id="saveProductBtn" onclick="addProduct()">＋ Hifadhi Bidhaa</button>
 <button class="danger" style="margin-left:8px" onclick="clearBuyForm()">Futa Fomu</button>
 </div>
@@ -337,7 +341,8 @@ Jumla haijalipwa: <strong id="debtsUnpaidLabel" style="color:#ff9f40">TZS 0</str
 <label>Chagua bidhaa</label>
 <select id="saleProduct"></select>
 <label>Kiasi kilichouzwa</label>
-<input id="saleQty" type="number" min="1" placeholder="Mfano: 2">
+<input id="saleQty" type="number" min="0.001" step="0.001" placeholder="Mfano: 2.5">
+<div id="saleUnitHint" class="note" style="margin-top:8px">Chagua bidhaa ili kuona unit na bei.</div>
 <button class="primary" onclick="makeSale()">＋ Rekodi Mauzo</button>
 <button class="danger" style="margin-left:8px" onclick="clearSellForm()">Futa Fomu</button>
 <div class="panel-header" style="margin-top:20px">
@@ -729,8 +734,8 @@ async function loadUserData() {
     sb.from('debt_payments').select('*').eq('user_id',uid).order('created_at',{ascending:true})
   ]);
   for (const r of results) if (r.error) throw r.error;
-  products=results[0].data.map(p=>({id:p.id,name:p.name,buy:safeNumber(p.buy_price),sell:safeNumber(p.sell_price),qty:safeNumber(p.quantity),lowThreshold:safeNumber(p.low_threshold)}));
-  sales=results[1].data.map(s=>({id:s.id,date:s.display_date||s.date_iso,dateISO:s.date_iso,productId:s.product_id,product:s.product_name,qty:s.quantity,amount:s.amount,cost:s.cost}));
+  products=results[0].data.map(p=>({id:p.id,name:p.name,buy:safeNumber(p.buy_price),sell:safeNumber(p.sell_price),qty:safeNumber(p.quantity),unit:(p.unit||'pc').toLowerCase(),lowThreshold:safeNumber(p.low_threshold)}));
+  sales=results[1].data.map(s=>({id:s.id,date:s.display_date||s.date_iso,dateISO:s.date_iso,productId:s.product_id,product:s.product_name,qty:safeNumber(s.quantity),unit:(s.unit||'pc').toLowerCase(),amount:safeNumber(s.amount),cost:safeNumber(s.cost)}));
   expenses=results[2].data.map(e=>({id:e.id,date:e.display_date||e.date_iso,dateISO:e.date_iso,name:e.name,amount:e.amount}));
   debts=results[3].data.map(d=>({id:d.id,customer:d.customer,amount:d.amount,paidAmount:d.paid_amount,balance:d.balance,date:d.debt_date,notes:d.notes,paid:d.status==='paid',status:d.status,paidDate:d.paid_date,lastPaymentDate:d.last_payment_date}));
   debtPayments=results[4].data.map(p=>({id:p.id,debtId:p.debt_id,customer:p.customer,amount:p.amount,date:p.display_date||p.date_iso,dateISO:p.date_iso}));
@@ -756,32 +761,37 @@ function showPage(id,btn) {
 }
 function showPageById(id,btn){ showPage(id,btn); }
 
+function unitLabel(unit){const m={pc:'pc',kg:'KG',g:'g',l:'L',ml:'ml',m:'m',box:'Box',carton:'Carton',dozen:'Dozen',packet:'Packet',bag:'Bag',other:'unit'};return m[String(unit||'pc').toLowerCase()]||unit||'unit';}
+function formatQty(v){const n=safeNumber(v);return Number.isInteger(n)?String(n):n.toFixed(3).replace(/0+$/,'').replace(/\.$/,'');}
+function isWholeUnit(unit){return ['pc','box','carton','dozen','packet','bag'].includes(String(unit||'pc').toLowerCase());}
 /* ===== PRODUCTS ===== */
 async function addProduct() {
   try {
     requireUser();
     const name=document.getElementById('productName').value.trim();
+    const unit=(document.getElementById('productUnit').value||'pc').toLowerCase();
     const buy=safeNumber(document.getElementById('buyPrice').value);
     const sell=safeNumber(document.getElementById('sellPrice').value);
     const qty=safeNumber(document.getElementById('qty').value);
     const low=safeNumber(document.getElementById('lowThreshold').value)||DEFAULT_LOW;
     if(!name||buy<=0||sell<=0||qty<=0) return alert('Jaza taarifa zote vizuri.');
+    if(!Number.isFinite(qty)) return alert('Weka kiasi sahihi.');
 
     if(editingId){
-      const conflict=products.find(x=>x.id!==editingId && x.name.toLowerCase()===name.toLowerCase());
+      const conflict=products.find(x=>x.id!==editingId && x.name.toLowerCase()===name.toLowerCase() && x.unit===unit);
       if(conflict) return alert('Jina hilo linatumika na bidhaa nyingine.');
-      const {error}=await sb.from('products').update({name,buy_price:buy,sell_price:sell,quantity:qty,low_threshold:low}).eq('id',editingId).eq('user_id',currentUser.id);
+      const {error}=await sb.from('products').update({name,unit,buy_price:buy,sell_price:sell,quantity:qty,low_threshold:low}).eq('id',editingId).eq('user_id',currentUser.id);
       if(error) throw error;
       clearBuyForm(); await save(); alert('Bidhaa imesasishwa.'); return;
     }
 
-    const existing=products.find(x=>x.name.toLowerCase()===name.toLowerCase());
+    const existing=products.find(x=>x.name.toLowerCase()===name.toLowerCase() && x.unit===unit);
     if(existing){
-      const {error}=await sb.from('products').update({quantity:existing.qty+qty,buy_price:buy,sell_price:sell,low_threshold:low}).eq('id',existing.id).eq('user_id',currentUser.id);
+      const {error}=await sb.from('products').update({quantity:existing.qty+qty,buy_price:buy,sell_price:sell,unit,low_threshold:low}).eq('id',existing.id).eq('user_id',currentUser.id);
       if(error) throw error;
-      clearBuyForm(); await save(); alert(`Stock ya "${existing.name}" imeongezwa. Sasa stock: ${existing.qty+qty}`); return;
+      clearBuyForm(); await save(); alert(`Stock ya "${existing.name}" imeongezwa. Sasa stock: ${formatQty(existing.qty+qty)} ${unitLabel(unit)}`); return;
     }
-    const {error}=await sb.from('products').insert({user_id:currentUser.id,name,buy_price:buy,sell_price:sell,quantity:qty,low_threshold:low});
+    const {error}=await sb.from('products').insert({user_id:currentUser.id,name,unit,buy_price:buy,sell_price:sell,quantity:qty,low_threshold:low});
     if(error) throw error;
     clearBuyForm(); await save(); alert('Bidhaa imeongezwa.');
   } catch(e){ alert(authError(e)); }
@@ -789,14 +799,14 @@ async function addProduct() {
 function startEditProduct(id){
   const p=products.find(x=>String(x.id)===String(id)); if(!p) return;
   editingId=id; document.getElementById('editProductId').value=id;
-  document.getElementById('productName').value=p.name; document.getElementById('buyPrice').value=p.buy;
+  document.getElementById('productName').value=p.name; document.getElementById('productUnit').value=p.unit||'pc'; document.getElementById('buyPrice').value=p.buy;
   document.getElementById('sellPrice').value=p.sell; document.getElementById('qty').value=p.qty;
   document.getElementById('lowThreshold').value=p.lowThreshold??DEFAULT_LOW;
   document.getElementById('saveProductBtn').textContent='💾 Sasisha Bidhaa'; showPageById('buy'); window.scrollTo({top:0,behavior:'smooth'});
 }
 function clearBuyForm(){
   editingId=null; document.getElementById('editProductId').value='';
-  ['productName','buyPrice','sellPrice','qty'].forEach(id=>document.getElementById(id).value='');
+  ['productName','buyPrice','sellPrice','qty'].forEach(id=>document.getElementById(id).value=''); document.getElementById('productUnit').value='pc';
   document.getElementById('lowThreshold').value='5'; document.getElementById('saveProductBtn').textContent='＋ Hifadhi Bidhaa';
 }
 
@@ -806,10 +816,10 @@ async function makeSale(){
     requireUser();
     const productId=document.getElementById('saleProduct').value;
     const qty=safeNumber(document.getElementById('saleQty').value);
-    if(!productId||qty<=0||!Number.isInteger(qty)) return alert('Chagua bidhaa na weka kiasi kamili kinachozidi 0.');
+    if(!productId||qty<=0) return alert('Chagua bidhaa na weka kiasi kinachozidi 0.');
     const p=products.find(x=>String(x.id)===String(productId));
     if(!p) return alert('Bidhaa haipatikani.');
-    if(p.qty<qty) return alert(`Stock haitoshi. Stock iliyopo: ${p.qty}`);
+    if(p.qty<qty) return alert(`Stock haitoshi. Stock iliyopo: ${formatQty(p.qty)} ${unitLabel(p.unit)}`);
     const {error}=await sb.rpc('record_sale',{p_product_id:p.id,p_quantity:qty});
     if(error) throw error;
     document.getElementById('saleQty').value=''; await save();
@@ -898,14 +908,14 @@ function getTodaySalesTotal(){return sales.filter(isTodaySale).reduce((t,s)=>t+s
 
 /* ===== EXPORT ===== */
 function downloadCSV(filename,rows){const csv=rows.map(row=>row.map(cell=>{const str=String(cell??'');return str.includes(',')||str.includes('"')||str.includes('\n')?'"'+str.replace(/"/g,'""')+'"':str;}).join(',')).join('\n');const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);}
-function exportProducts(){if(!products.length)return alert('Hakuna bidhaa.');downloadCSV(`bidhaa_${currentIdentity()}_${todayLocalKey()}.csv`,[['Jina','Stock','Kununua','Kuuza','Thamani','Low Threshold'],...products.map(p=>[p.name,p.qty,p.buy,p.sell,p.qty*p.sell,p.lowThreshold??DEFAULT_LOW])]);}
-function exportSales(){if(!sales.length)return alert('Hakuna mauzo.');downloadCSV(`mauzo_${currentIdentity()}_${todayLocalKey()}.csv`,[['Tarehe','Bidhaa','Kiasi','Mapato','Gharama','Faida'],...sales.map(s=>[s.date,s.product,s.qty,s.amount,s.cost,s.amount-s.cost])]);}
+function exportProducts(){if(!products.length)return alert('Hakuna bidhaa.');downloadCSV(`bidhaa_${currentIdentity()}_${todayLocalKey()}.csv`,[['Jina','Unit','Stock','Kununua/Unit','Kuuza/Unit','Thamani','Low Threshold'],...products.map(p=>[p.name,unitLabel(p.unit),p.qty,p.buy,p.sell,p.qty*p.sell,p.lowThreshold??DEFAULT_LOW])]);}
+function exportSales(){if(!sales.length)return alert('Hakuna mauzo.');downloadCSV(`mauzo_${currentIdentity()}_${todayLocalKey()}.csv`,[['Tarehe','Bidhaa','Unit','Kiasi','Mapato','Gharama','Faida'],...sales.map(s=>[s.date,s.product,unitLabel(s.unit),s.qty,s.amount,s.cost,s.amount-s.cost])]);}
 function exportExpenses(){if(!expenses.length)return alert('Hakuna matumizi.');downloadCSV(`matumizi_${currentIdentity()}_${todayLocalKey()}.csv`,[['Tarehe','Matumizi','Kiasi'],...expenses.map(e=>[e.date,e.name,e.amount])]);}
 function exportDebts(){if(!debts.length)return alert('Hakuna madeni.');downloadCSV(`madeni_${currentIdentity()}_${todayLocalKey()}.csv`,[['Mteja','Deni','Imelipwa','Salio','Tarehe','Maelezo','Hali','Tarehe ya Malipo'],...debts.map(d=>[d.customer,d.amount,d.paidAmount,d.balance,d.date,d.notes||'',d.balance<=0?'Limelipwa ✓':d.paidAmount>0?'Sehemu imelipwa':'Bado Halijalipwa',d.paidDate||d.lastPaymentDate||''])]);}
-function exportSummary(){const t=calculateBusinessTotals(),stock=products.reduce((a,x)=>a+safeNumber(x.qty),0),stockValue=products.reduce((a,x)=>a+safeNumber(x.qty)*safeNumber(x.buy),0);downloadCSV(`muhtasari_${currentIdentity()}_${todayLocalKey()}.csv`,[['MUHTASARI WA BIASHARA'],['Tarehe',new Date().toLocaleString('sw-TZ')],['Mtumiaji',currentIdentity()],[],['Kipengele','Kiasi'],['Mauzo (cash)',t.salesOnly],['Malipo ya madeni',t.debtPaymentsTotal],['Jumla ya Mapato',t.totalRevenue],['Gharama za Bidhaa',t.costOfGoods],['Matumizi',t.expensesTotal],['Faida/Hasara',t.netProfit],['Madeni hayajalipwa',t.unpaidDebts],['Stock (idadi)',stock],['Thamani ya Stock',stockValue]]);}
+function exportSummary(){const t=calculateBusinessTotals(),stock=products.reduce((a,x)=>a+safeNumber(x.qty),0),stockValue=products.reduce((a,x)=>a+safeNumber(x.qty)*safeNumber(x.buy),0);downloadCSV(`muhtasari_${currentIdentity()}_${todayLocalKey()}.csv`,[['MUHTASARI WA BIASHARA'],['Tarehe',new Date().toLocaleString('sw-TZ')],['Mtumiaji',currentIdentity()],[],['Kipengele','Kiasi'],['Mauzo (cash)',t.salesOnly],['Malipo ya madeni',t.debtPaymentsTotal],['Jumla ya Mapato',t.totalRevenue],['Gharama za Bidhaa',t.costOfGoods],['Matumizi',t.expensesTotal],['Faida/Hasara',t.netProfit],['Madeni hayajalipwa',t.unpaidDebts],['Stock (jumla ya units)',stock],['Thamani ya Stock',stockValue]]);}
 
 /* ===== PRINT ===== */
-function salesTableHtml(){if(!sales.length)return'<p>Hakuna mauzo.</p>';return`<table><thead><tr><th>Tarehe</th><th>Bidhaa</th><th>Kiasi</th><th>Mapato</th></tr></thead><tbody>${sales.slice().reverse().map(s=>`<tr><td>${escapeHTML(s.date)}</td><td>${escapeHTML(s.product)}</td><td>${s.qty}</td><td>${money(s.amount)}</td></tr>`).join('')}</tbody></table>`;}
+function salesTableHtml(){if(!sales.length)return'<p>Hakuna mauzo.</p>';return`<table><thead><tr><th>Tarehe</th><th>Bidhaa</th><th>Kiasi</th><th>Mapato</th></tr></thead><tbody>${sales.slice().reverse().map(s=>`<tr><td>${escapeHTML(s.date)}</td><td>${escapeHTML(s.product)}</td><td>${unitLabel(s.unit)}</td><td>${formatQty(s.qty)}</td><td>${money(s.amount)}</td></tr>`).join('')}</tbody></table>`;}
 function expensesTableHtml(){if(!expenses.length)return'<p>Hakuna matumizi.</p>';return`<table><thead><tr><th>Tarehe</th><th>Matumizi</th><th>Kiasi</th></tr></thead><tbody>${expenses.map(e=>`<tr><td>${escapeHTML(e.date)}</td><td>${escapeHTML(e.name)}</td><td>${money(e.amount)}</td></tr>`).join('')}</tbody></table>`;}
 function printReport(type){
   const user=currentIdentity(),now=new Date().toLocaleString('sw-TZ'),t=calculateBusinessTotals(),stock=products.reduce((a,x)=>a+safeNumber(x.qty),0),stockValue=products.reduce((a,x)=>a+safeNumber(x.qty)*safeNumber(x.buy),0);let title='Ripoti',body='';
@@ -932,13 +942,16 @@ function render(){
 
   const debtsEl=document.getElementById('debtsTable');if(debtsEl){if(!debts.length)debtsEl.innerHTML='<div class="empty">Hakuna madeni yaliyorekodiwa.</div>';else{const sorted=[...debts].sort((a,b)=>safeNumber(a.balance)-safeNumber(b.balance));debtsEl.innerHTML=`<table><tr><th>Mteja</th><th>Deni</th><th>Imelipwa</th><th>Salio</th><th>Tarehe</th><th>Maelezo</th><th>Hali</th><th></th></tr>${sorted.map(d=>`<tr style="${d.balance<=0?'opacity:.75':''}"><td>${escapeHTML(d.customer)}</td><td>${money(d.amount)}</td><td>${money(d.paidAmount)}</td><td><b>${money(d.balance)}</b></td><td>${escapeHTML(d.date)}</td><td>${escapeHTML(d.notes||'—')}</td><td>${d.balance<=0?'<span class="up">✓ Limelipwa</span>':d.paidAmount>0?'<span style="color:#25a9e8">◐ Sehemu imelipwa</span>':'<span style="color:#ff9f40">Bado Halijalipwa</span>'}</td><td style="white-space:nowrap">${d.balance>0?`<button class="primary" style="padding:6px 10px;font-size:12px;margin-right:4px" onclick='markDebtPaid(${JSON.stringify(String(d.id))})'>Lipa</button>`:''}<button class="danger" onclick='deleteDebt(${JSON.stringify(String(d.id))})'>Futa</button></td></tr>`).join('')}</table>`;}}
 
-  const lowList=getLowStockProducts(),alertBar=document.getElementById('lowStockAlert'),alertList=document.getElementById('lowStockList');if(alertBar&&alertList){if(lowList.length){alertBar.classList.add('show');alertList.innerHTML=lowList.map(p=>`<div class="alert-item">• <b>${escapeHTML(p.name)}</b> — zimebaki <b>${p.qty}</b> (onyo ≤ ${p.lowThreshold??DEFAULT_LOW})</div>`).join('');lowList.forEach(p=>{const key=p.id+'_'+p.qty;if(!notifiedLow.has(key)){notifiedLow.add(key);showBrowserNotification('⚠️ Stock low',`${p.name}: zimebaki ${p.qty}`);}});}else alertBar.classList.remove('show');}
+  const lowList=getLowStockProducts(),alertBar=document.getElementById('lowStockAlert'),alertList=document.getElementById('lowStockList');if(alertBar&&alertList){if(lowList.length){alertBar.classList.add('show');alertList.innerHTML=lowList.map(p=>`<div class="alert-item">• <b>${escapeHTML(p.name)}</b> — zimebaki <b>${formatQty(p.qty)} ${unitLabel(p.unit)}</b> (onyo ≤ ${formatQty(p.lowThreshold??DEFAULT_LOW)} ${unitLabel(p.unit)})</div>`).join('');lowList.forEach(p=>{const key=p.id+'_'+p.qty;if(!notifiedLow.has(key)){notifiedLow.add(key);showBrowserNotification('⚠️ Stock low',`${p.name}: zimebaki ${formatQty(p.qty)} ${unitLabel(p.unit)}`);}});}else alertBar.classList.remove('show');}
 
-  const top=getTopSellers(5),topPanel=document.getElementById('topSellersPanel');if(topPanel)topPanel.innerHTML=top.length?`<table><tr><th>#</th><th>Bidhaa</th><th>Idadi iliyouzwa</th><th>Mapato</th></tr>${top.map((x,i)=>`<tr><td>${i+1}</td><td>${escapeHTML(x.name)}${i===0?' <span class="top-seller-badge">TOP</span>':''}</td><td>${x.qty}</td><td>${money(x.amount)}</td></tr>`).join('')}</table>`:'<div class="empty">Hakuna mauzo bado.</div>';
+  const top=getTopSellers(5),topPanel=document.getElementById('topSellersPanel');if(topPanel)topPanel.innerHTML=top.length?`<table><tr><th>#</th><th>Bidhaa</th><th>Kiasi kilichouzwa</th><th>Mapato</th></tr>${top.map((x,i)=>`<tr><td>${i+1}</td><td>${escapeHTML(x.name)}${i===0?' <span class="top-seller-badge">TOP</span>':''}</td><td>${x.qty}</td><td>${money(x.amount)}</td></tr>`).join('')}</table>`:'<div class="empty">Hakuna mauzo bado.</div>';
 
-  const productsEl=document.getElementById('productsTable');if(productsEl)productsEl.innerHTML=products.length?`<table><tr><th>Bidhaa</th><th>Stock</th><th>Kununua</th><th>Kuuza</th><th></th></tr>${products.map(p=>{const low=safeNumber(p.qty)<=safeNumber(p.lowThreshold??DEFAULT_LOW);return`<tr class="${low?'low-stock':''}"><td>${escapeHTML(p.name)}${low?' ⚠️':''}</td><td>${p.qty}</td><td>${money(p.buy)}</td><td>${money(p.sell)}</td><td style="white-space:nowrap"><button class="export-btn" style="padding:6px 10px;font-size:12px;margin-right:4px" onclick='startEditProduct(${JSON.stringify(String(p.id))})'>Edit</button><button class="danger" onclick='del("product",${JSON.stringify(String(p.id))})'>Futa</button></td></tr>`;}).join('')}</table>`:'<div class="empty">Hakuna bidhaa bado.</div>';
-  const saleProductEl=document.getElementById('saleProduct');if(saleProductEl)saleProductEl.innerHTML=products.length?products.map(p=>`<option value="${escapeHTML(p.id)}">${escapeHTML(p.name)} — Stock: ${p.qty}${p.qty<=p.lowThreshold?' ⚠️':''} — ${money(p.sell)}</option>`).join(''):'<option value="">Hakuna bidhaa</option>';
-  const salesEl=document.getElementById('salesTable');if(salesEl)salesEl.innerHTML=sales.length?`<table><tr><th>Tarehe</th><th>Bidhaa</th><th>Kiasi</th><th>Mapato</th><th></th></tr>${sales.slice().reverse().map(s=>`<tr><td>${escapeHTML(s.date)}</td><td>${escapeHTML(s.product)}</td><td>${s.qty}</td><td>${money(s.amount)}</td><td><button class="danger" onclick='del("sale",${JSON.stringify(String(s.id))})'>Futa</button></td></tr>`).join('')}</table>`:'<div class="empty">Hakuna mauzo bado.</div>';
+  const productsEl=document.getElementById('productsTable');if(productsEl)productsEl.innerHTML=products.length?`<table><tr><th>Bidhaa</th><th>Unit</th><th>Stock</th><th>Kununua/Unit</th><th>Kuuza/Unit</th><th></th></tr>${products.map(p=>{const low=safeNumber(p.qty)<=safeNumber(p.lowThreshold??DEFAULT_LOW);return`<tr class="${low?'low-stock':''}"><td>${escapeHTML(p.name)}${low?' ⚠️':''}</td><td>${unitLabel(p.unit)}</td><td>${formatQty(p.qty)}</td><td>${money(p.buy)}</td><td>${money(p.sell)}</td><td style="white-space:nowrap"><button class="export-btn" style="padding:6px 10px;font-size:12px;margin-right:4px" onclick='startEditProduct(${JSON.stringify(String(p.id))})'>Edit</button><button class="danger" onclick='del("product",${JSON.stringify(String(p.id))})'>Futa</button></td></tr>`;}).join('')}</table>`:'<div class="empty">Hakuna bidhaa bado.</div>';
+  const saleProductEl=document.getElementById('saleProduct');
+  const updateSaleHint=()=>{const p=products.find(x=>String(x.id)===String(document.getElementById('saleProduct')?.value));const h=document.getElementById('saleUnitHint');if(h)h.innerHTML=p?`Unit: <b>${unitLabel(p.unit)}</b> · Stock: <b>${formatQty(p.qty)} ${unitLabel(p.unit)}</b> · Bei: <b>${money(p.sell)} / ${unitLabel(p.unit)}</b>`:'Chagua bidhaa ili kuona unit na bei.';};
+  if(saleProductEl && !saleProductEl.dataset.bound){saleProductEl.addEventListener('change',updateSaleHint);saleProductEl.dataset.bound='1';}
+  updateSaleHint();if(saleProductEl)saleProductEl.innerHTML=products.length?products.map(p=>`<option value="${escapeHTML(p.id)}">${escapeHTML(p.name)} — ${formatQty(p.qty)} ${unitLabel(p.unit)}${p.qty<=p.lowThreshold?' ⚠️':''} — ${money(p.sell)}/${unitLabel(p.unit)}</option>`).join(''):'<option value="">Hakuna bidhaa</option>';
+  const salesEl=document.getElementById('salesTable');if(salesEl)salesEl.innerHTML=sales.length?`<table><tr><th>Tarehe</th><th>Bidhaa</th><th>Kiasi</th><th>Mapato</th><th></th></tr>${sales.slice().reverse().map(s=>`<tr><td>${escapeHTML(s.date)}</td><td>${escapeHTML(s.product)}</td><td>${unitLabel(s.unit)}</td><td>${formatQty(s.qty)}</td><td>${money(s.amount)}</td><td><button class="danger" onclick='del("sale",${JSON.stringify(String(s.id))})'>Futa</button></td></tr>`).join('')}</table>`:'<div class="empty">Hakuna mauzo bado.</div>';
   const expensesEl=document.getElementById('expensesTable');if(expensesEl)expensesEl.innerHTML=expenses.length?`<table><tr><th>Tarehe</th><th>Matumizi</th><th>Kiasi</th><th></th></tr>${expenses.map(e=>`<tr><td>${escapeHTML(e.date)}</td><td>${escapeHTML(e.name)}</td><td>${money(e.amount)}</td><td><button class="danger" onclick='del("expense",${JSON.stringify(String(e.id))})'>Futa</button></td></tr>`).join('')}</table>`:'<div class="empty">Hakuna matumizi bado.</div>';
 }
 
