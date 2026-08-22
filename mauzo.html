@@ -275,7 +275,17 @@ th,td{font-size:11px;padding:8px}.bottom-inner{grid-template-columns:repeat(3,1f
 <input id="productName" placeholder="Mfano: Soda">
 <label>Unit ya bidhaa</label>
 <select id="productUnit">
-<option value="pc">Piece (pc)</option><option value="kg">Kilogram (KG)</option><option value="g">Gram (g)</option><option value="l">Litre (L)</option><option value="ml">Millilitre (ml)</option><option value="m">Meter (m)</option><option value="box">Box</option><option value="carton">Carton</option><option value="dozen">Dozen</option><option value="packet">Packet</option><option value="bag">Bag</option><option value="other">Other</option>
+<option value="lita">Lita</option>
+<option value="nusu_lita">Nusu Lita</option>
+<option value="robo_lita">Robo Lita</option>
+<option value="kilo">Kilo</option>
+<option value="nusu_kilo">Nusu Kilo</option>
+<option value="robo_kilo">Robo Kilo</option>
+<option value="pc">PC</option>
+<option value="kipande">Kipande</option>
+<option value="box">Box</option>
+<option value="katoni">Katoni</option>
+<option value="tray">Tray</option>
 </select>
 <label>Bei ya kununua kwa unit</label>
 <input id="buyPrice" type="number" step="0.01" min="0" placeholder="Mfano: 2000">
@@ -339,9 +349,14 @@ Jumla haijalipwa: <strong id="debtsUnpaidLabel" style="color:#ff9f40">TZS 0</str
 <div class="section-title"><h2>💰 Kuuza</h2></div>
 <div class="panel">
 <label>Chagua bidhaa</label>
-<select id="saleProduct"></select>
+<input id="saleProduct" list="saleProductList" autocomplete="off"
+       placeholder="Andika jina la bidhaa..." oninput="filterSaleProducts()">
+<datalist id="saleProductList"></datalist>
+<div id="saleProductHint" class="note" style="margin-top:8px">
+  Andika jina la bidhaa ili kutafuta kwenye stock iliyopo.
+</div>
 <label>Kiasi kilichouzwa</label>
-<input id="saleQty" type="number" min="0.001" step="0.001" placeholder="Mfano: 2.5">
+<input id="saleQty" type="number" min="0.001" step="0.001" placeholder="Mfano: 2.5" step="0.001" min="0.001" placeholder="Mfano: 2.5">
 <div id="saleUnitHint" class="note" style="margin-top:8px">Chagua bidhaa ili kuona unit na bei.</div>
 <button class="primary" onclick="makeSale()">＋ Rekodi Mauzo</button>
 <button class="danger" style="margin-left:8px" onclick="clearSellForm()">Futa Fomu</button>
@@ -811,6 +826,59 @@ function clearBuyForm(){
 }
 
 /* ===== SALES ===== */
+
+function unitLabel(unit){
+  const map={
+    lita:'Lita',
+    nusu_lita:'Nusu Lita',
+    robo_lita:'Robo Lita',
+    kilo:'Kilo',
+    nusu_kilo:'Nusu Kilo',
+    robo_kilo:'Robo Kilo',
+    pc:'PC',
+    kipande:'Kipande',
+    box:'Box',
+    katoni:'Katoni',
+    tray:'Tray'
+  };
+  return map[String(unit||'').toLowerCase()] || unit || 'PC';
+}
+function productSearchName(p){ return String(p?.name||'').trim().toLowerCase(); }
+function findSaleProductByName(){
+  const input=document.getElementById('saleProduct');
+  const typed=String(input?.value||'').trim().toLowerCase();
+  if(!typed) return null;
+  return products.find(p=>productSearchName(p)===typed) || null;
+}
+function filterSaleProducts(){
+  const input=document.getElementById('saleProduct');
+  const list=document.getElementById('saleProductList');
+  const hint=document.getElementById('saleProductHint');
+  if(!input||!list) return;
+  const typed=String(input.value||'').trim().toLowerCase();
+  list.innerHTML='';
+  if(!typed){
+    if(hint) hint.textContent='Andika jina la bidhaa ili kutafuta kwenye stock iliyopo.';
+    return;
+  }
+  const matches=products.filter(p=>productSearchName(p).includes(typed));
+  matches.slice(0,20).forEach(p=>{
+    const option=document.createElement('option');
+    option.value=p.name;
+    option.label=`Stock: ${formatQty(p.qty)} ${unitLabel(p.unit)} | TZS ${Number(p.sell||0).toLocaleString('en-TZ')} kwa ${unitLabel(p.unit)}`;
+    list.appendChild(option);
+  });
+  if(hint){
+    hint.textContent=matches.length
+      ? `${matches.length} bidhaa inayolingana imepatikana. Chagua bidhaa iliyo sahihi.`
+      : 'Bidhaa hiyo haipo kwenye stock iliyopo.';
+  }
+}
+function formatQty(value){
+  const n=Number(value||0);
+  return Number.isInteger(n) ? String(n) : n.toFixed(3).replace(/0+$/,'').replace(/\.$/,'');
+}
+
 async function makeSale(){
   try{
     requireUser();
@@ -822,7 +890,7 @@ async function makeSale(){
     if(p.qty<qty) return alert(`Stock haitoshi. Stock iliyopo: ${formatQty(p.qty)} ${unitLabel(p.unit)}`);
     const {error}=await sb.rpc('record_sale',{p_product_id:p.id,p_quantity:qty});
     if(error) throw error;
-    document.getElementById('saleQty').value=''; await save();
+    document.getElementById('saleQty').value=''; document.getElementById('saleProduct').value=''; if(document.getElementById('saleProductHint')) document.getElementById('saleProductHint').textContent='Andika jina la bidhaa ili kutafuta kwenye stock iliyopo.'; await save();
     const updated=products.find(x=>x.id===p.id); if(updated) checkLowStock(updated);
     alert('Mauzo yamehifadhiwa.');
   }catch(e){alert(authError(e));}
