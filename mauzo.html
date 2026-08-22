@@ -1,0 +1,972 @@
+
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mfumo wa Mauzo</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{box-sizing:border-box}
+:root{
+--bg:#061b23; --text:#f5f7f8; --muted:#9eb0b5; --line:#29444c;
+--green:#36e0a0; --blue:#25a9e8; --red:#ff6974; --orange:#ff9f40;
+}
+body{margin:0;font-family:Inter,Arial,sans-serif;background:radial-gradient(circle at 20% 0%,#123d49 0,#061b23 42%,#04151c 100%);color:var(--text);min-height:100vh}
+button,input,select{font:inherit}
+header{padding:24px 20px 16px;max-width:1180px;margin:auto}
+.top{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#2ce3a0,#178fd3);display:grid;place-items:center;font-size:24px}
+header h1{margin:0;font-size:23px}
+header p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.profile{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.logout-btn{background:#592c33;color:#ffadb2;border:1px solid #7d3941;padding:8px 14px;border-radius:10px;cursor:pointer;font-size:13px}
+nav{max-width:1180px;margin:0 auto;padding:0 20px 16px;display:flex;gap:10px;overflow:auto}
+nav button{border:1px solid var(--line);background:#102d36;color:#b8c7ca;padding:11px 17px;border-radius:14px;white-space:nowrap;cursor:pointer}
+nav button.active{background:linear-gradient(135deg,#27cda0,#168fd0);color:white;border-color:transparent;box-shadow:0 8px 25px #16a98c33}
+main{max-width:1180px;margin:auto;padding:0 20px 105px}
+.page{display:none}.page.active{display:block}
+.hero{background:linear-gradient(135deg,#123b46,#0d2932);border:1px solid #294a52;border-radius:24px;padding:22px;box-shadow:0 15px 40px #0003}
+.hero small{color:#9fb5ba}
+.balance{font-size:34px;font-weight:800;margin-top:8px}
+.change{display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:linear-gradient(90deg,#159bd5,#29d9a1);padding:9px 14px;border-radius:20px;font-weight:700}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin:24px 2px 12px;flex-wrap:wrap;gap:10px}
+.section-title h2,.section-title h3{margin:0}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:linear-gradient(145deg,#12333c,#0d2931);border:1px solid #29454d;border-radius:19px;padding:17px}
+.card .icon{width:40px;height:40px;border-radius:13px;background:#1b414a;display:grid;place-items:center;margin-bottom:13px;font-size:20px}
+.card small{color:var(--muted)}.card strong{display:block;font-size:22px;margin-top:7px}
+.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.quick button{border:1px solid #2d4a52;background:#102e37;color:white;border-radius:19px;padding:20px 10px;cursor:pointer}
+.quick .qicon{font-size:25px;margin-bottom:9px}.quick span{color:#a9babf;font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1.25fr;gap:14px}
+.panel{background:linear-gradient(145deg,#102f38,#0b252d);border:1px solid #29454d;border-radius:20px;padding:18px;margin-top:14px}
+label{display:block;color:#aebfc3;font-size:13px;margin-top:5px}
+input,select{width:100%;padding:12px;border:1px solid #35515a;border-radius:11px;margin:7px 0 13px;background:#091f27;color:white;outline:none}
+input:focus,select:focus{border-color:#28d7a0}
+button.primary{background:linear-gradient(135deg,#25d39f,#168fd2);color:white;border:0;padding:12px 17px;border-radius:11px;cursor:pointer;font-weight:700}
+button.danger{background:#592c33;color:#ffadb2;border:1px solid #7d3941;padding:7px 10px;border-radius:8px;cursor:pointer}
+button.export-btn{background:linear-gradient(135deg,#25a9e8,#168fd2);color:white;border:0;padding:8px 14px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600}
+button.print-btn{background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:white;border:0;padding:8px 14px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:11px;border-bottom:1px solid #263f47;text-align:left;font-size:13px}
+th{color:#9fb2b7;font-weight:600}td{color:#e1e8e9}
+.note{background:#103d47;border:1px solid #285964;padding:13px;border-radius:12px;color:#c3d7da}
+.profit{font-size:28px;font-weight:800}.loss{font-size:28px;font-weight:800;color:var(--red)}
+.market{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.market-card{background:#0c2730;border:1px solid #27464e;border-radius:15px;padding:14px}
+.market-card b{display:block;margin-bottom:5px}
+.up{color:var(--green)}.down{color:var(--red)}.empty{color:#81969b;padding:12px 0}
+.chart-box{background:linear-gradient(145deg,#102f38,#0b252d);border:1px solid #29454d;border-radius:20px;padding:20px;margin-top:20px}
+.chart-box h3{margin:0 0 16px;font-size:16px}.chart-wrap{position:relative;height:280px;width:100%}
+.panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.panel-header h3{margin:0}
+
+/* Alerts */
+.alert-bar{background:linear-gradient(90deg,#5c2a1a,#3a1a1e);border:1px solid #7d3941;border-radius:14px;padding:14px 18px;margin-bottom:16px;display:none}
+.alert-bar.show{display:block}
+.alert-bar h4{margin:0 0 8px;color:#ffadb2;font-size:15px}
+.alert-item{color:#ffc9cc;font-size:13px;padding:4px 0}
+.low-stock{background:rgba(255,105,116,0.15)!important;border-color:#ff6974!important}
+.top-seller-badge{background:linear-gradient(90deg,#f5a623,#f7c948);color:#1a1a1a;font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;margin-left:6px}
+
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#071c24ee;backdrop-filter:blur(18px);border-top:1px solid #29434a;display:flex;justify-content:center;z-index:10}
+.bottom-inner{width:min(700px,100%);display:grid;grid-template-columns:repeat(6,1fr)}
+.bottom-nav button{background:linear-gradient(180deg,#102d36,#0b242c);border:1px solid #29464e;color:#a9b9bd;padding:10px 8px 9px;margin:7px 4px;border-radius:16px;cursor:pointer;font-size:11px;position:relative}
+.bottom-nav button.active{color:white;transform:translateY(-3px);background:linear-gradient(180deg,#16404a,#0d3039);border-color:#3c6871}
+.bottom-nav button .bi{display:block;margin-bottom:3px;font-size:21px}
+
+#authScreen{display:none;min-height:100vh;align-items:center;justify-content:center;padding:20px}
+#authScreen.show{display:flex}
+.auth-box{width:100%;max-width:420px;background:linear-gradient(145deg,#102f38,#0b252d);border:1px solid #29454d;border-radius:24px;padding:32px 28px;box-shadow:0 20px 50px #0005}
+.auth-box h2{margin:0 0 8px;font-size:24px;text-align:center}
+.auth-box .subtitle{color:var(--muted);text-align:center;margin-bottom:20px;font-size:14px}
+.auth-tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+.auth-tabs button{flex:1;min-width:70px;padding:10px 8px;border-radius:12px;border:1px solid #35515a;background:#0c222a;color:#a9babf;cursor:pointer;font-size:13px}
+.auth-tabs button.active{background:linear-gradient(135deg,#25d39f,#168fd2);color:white;border-color:transparent}
+.auth-error{background:#3a1a1e;color:#ffadb2;padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:13px;display:none}
+.auth-success{background:#0f3a2e;color:#36e0a0;padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:13px;display:none}
+.auth-info{background:#0c2a3a;color:#9ec8e0;padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:12px;display:none}
+.user-info{font-size:13px;color:var(--muted)}
+#app{display:none}
+.otp-boxes{display:flex;gap:10px;justify-content:center;margin:14px 0}
+.otp-boxes input{width:48px;height:52px;text-align:center;font-size:22px;font-weight:700;padding:0}
+.link-btn{background:none;border:none;color:var(--blue);cursor:pointer;font-size:13px;text-decoration:underline;padding:0;margin-top:8px}
+.channel-btns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.channel-btns button{flex:1;padding:10px;border-radius:10px;border:1px solid #35515a;background:#0c222a;color:#b8c7ca;cursor:pointer;font-size:12px}
+.channel-btns button.active{border-color:#28d7a0;background:#0f3a2e;color:#36e0a0}
+
+@media(max-width:900px){
+.cards{grid-template-columns:1fr 1fr !important}
+}
+@media(max-width:800px){
+.cards{grid-template-columns:1fr 1fr !important}.grid{grid-template-columns:1fr}.quick{grid-template-columns:1fr 1fr}
+.balance{font-size:29px}.chart-wrap{height:240px}.market{grid-template-columns:1fr}
+}
+@media(max-width:500px){
+header,nav,main{padding-left:12px;padding-right:12px}
+.cards{gap:8px}.card{padding:13px}.card strong{font-size:18px}
+th,td{font-size:11px;padding:8px}.bottom-inner{grid-template-columns:repeat(3,1fr)}
+.bottom-nav button{margin:5px 2px;padding:8px 4px 7px;font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== AUTH ==================== -->
+<div id="authScreen">
+<div class="auth-box">
+<div class="logo" style="margin:0 auto 16px;width:56px;height:56px;font-size:28px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(135deg,#2ce3a0,#178fd3)">📊</div>
+<h2>Mfumo wa Mauzo</h2>
+<p class="subtitle" id="authSubtitle">Ingia au unda akaunti</p>
+
+<div class="auth-tabs" id="authTabs">
+<button id="tabLogin" class="active" onclick="switchAuthTab('login')">Ingia</button>
+<button id="tabRegister" onclick="switchAuthTab('register')">Jisajili</button>
+<button id="tabForgot" onclick="switchAuthTab('forgot')">Nenosiri</button>
+</div>
+
+<div id="authError" class="auth-error"></div>
+<div id="authSuccess" class="auth-success"></div>
+<div id="authInfo" class="auth-info"></div>
+
+<!-- LOGIN -->
+<div id="loginForm">
+<label>Jina la mtumiaji / Email / Simu</label>
+<input id="loginUser" type="text" placeholder="jina, email au simu" autocomplete="username">
+<label>Nenosiri</label>
+<input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password">
+<button class="primary" style="width:100%;margin-top:8px" onclick="doLogin()">Ingia</button>
+<button class="link-btn" onclick="switchAuthTab('forgot')">Umesahau nenosiri?</button>
+</div>
+
+<!-- REGISTER -->
+<div id="registerForm" style="display:none">
+<label>Jina la mtumiaji</label>
+<input id="regUser" type="text" placeholder="Chagua jina" autocomplete="username">
+<label>Namba ya simu</label>
+<input id="regPhone" type="tel" placeholder="Mfano: 0712345678" autocomplete="tel">
+<label>Barua pepe (Email)</label>
+<input id="regEmail" type="email" placeholder="mfano@email.com" autocomplete="email">
+<label>Nenosiri</label>
+<input id="regPass" type="password" placeholder="Angalau herufi 4" autocomplete="new-password">
+<label>Thibitisha nenosiri</label>
+<input id="regPass2" type="password" placeholder="Andika tena" autocomplete="new-password">
+<button class="primary" style="width:100%;margin-top:8px" onclick="doRegister()">Unda akaunti</button>
+</div>
+
+<!-- FORGOT PASSWORD -->
+<div id="forgotForm" style="display:none">
+<div id="forgotStep1">
+<label>Jina / Email / Simu</label>
+<input id="forgotIdentity" type="text" placeholder="Andika jina, email au simu">
+<p style="color:var(--muted);font-size:12px;margin:0 0 10px">Tutatuma link salama ya kubadilisha nenosiri kwenye email ya akaunti.</p>
+
+<button class="primary" style="width:100%;margin-top:8px" onclick="sendOtp()">Tuma Link ya Nenosiri</button>
+</div>
+<div id="forgotStep2" style="display:none">
+<label>Weka Nenosiri Jipya</label>
+
+<label>Nenosiri jipya</label>
+<input id="newPass" type="password" placeholder="Angalau herufi 4">
+<label>Thibitisha nenosiri jipya</label>
+<input id="newPass2" type="password" placeholder="Andika tena">
+<button class="primary" style="width:100%;margin-top:8px" onclick="resetPassword()">Badilisha Nenosiri</button>
+<button class="link-btn" onclick="sendOtp()">Tuma Link ya Nenosiri tena</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app">
+<header>
+<div class="top">
+<div class="brand">
+<div class="logo">📊</div>
+<div>
+<h1>Mfumo wa Mauzo</h1>
+<p>Sales & Business Dashboard</p>
+</div>
+</div>
+<div class="profile">
+<span class="user-info" id="currentUser"></span>
+<button class="logout-btn" onclick="logout()">Toka</button>
+</div>
+</div>
+</header>
+
+<nav>
+<button class="active" data-page="home" onclick="showPage('home',this)">Dashboard</button>
+<button data-page="buy" onclick="showPage('buy',this)">Kununua</button>
+<button data-page="sell" onclick="showPage('sell',this)">Kuuza</button>
+<button data-page="debts" onclick="showPage('debts',this)">Madeni</button>
+<button data-page="expenses" onclick="showPage('expenses',this)">Matumizi</button>
+<button data-page="profit" onclick="showPage('profit',this)">Faida</button>
+<button data-page="loss" onclick="showPage('loss',this)">Hasara</button>
+</nav>
+
+<main>
+<!-- HOME -->
+<section id="home" class="page active">
+<div id="lowStockAlert" class="alert-bar">
+<h4>⚠️ Onyo: Stock inakaribia kuisha</h4>
+<div id="lowStockList"></div>
+</div>
+
+<div class="hero">
+<small>TOTAL BUSINESS VALUE</small>
+<div class="balance" id="businessValue">TZS 0</div>
+<div class="change">↗ <span id="profitChange">TZS 0</span></div>
+</div>
+
+<div class="section-title"><h2>Overview</h2><span>Leo</span></div>
+<div class="cards" style="grid-template-columns:repeat(3,1fr)">
+<div class="card"><div class="icon">📦</div><small>Bidhaa zilizopo</small><strong id="stockCount">0</strong></div>
+<div class="card"><div class="icon">💰</div><small>Mauzo yote</small><strong id="salesTotal">TZS 0</strong></div>
+<div class="card" style="border-color:#36e0a0"><div class="icon">📅</div><small>Leo tumetengeneza</small><strong id="todaySales" class="up">TZS 0</strong></div>
+<div class="card"><div class="icon">💸</div><small>Matumizi</small><strong id="expenseTotal">TZS 0</strong></div>
+<div class="card" style="border-color:#ff9f40"><div class="icon">🧾</div><small>Madeni hayajalipwa</small><strong id="unpaidDebtsTotal" style="color:#ff9f40">TZS 0</strong></div>
+<div class="card"><div class="icon">📈</div><small>Faida / Hasara</small><strong id="profitTotal">TZS 0</strong></div>
+</div>
+
+<div class="chart-box">
+<h3>📊 Grafu ya Faida na Hasara</h3>
+<div class="chart-wrap"><canvas id="profitLossChart"></canvas></div>
+</div>
+
+<!-- TOP SELLERS -->
+<div class="section-title"><h2>🔥 Bidhaa Zinazouzika Sana</h2><span>Top 5</span></div>
+<div class="panel" id="topSellersPanel">
+<div class="empty">Hakuna mauzo bado.</div>
+</div>
+
+<div class="section-title"><h2>Quick Access</h2></div>
+<div class="quick">
+<button onclick="showPageById('buy')"><div class="qicon">➕</div>Nunua<br><span>Ongeza stock</span></button>
+<button onclick="showPageById('sell')"><div class="qicon">➖</div>Uza<br><span>Rekodi mauzo</span></button>
+<button onclick="showPageById('expenses')"><div class="qicon">🧾</div>Matumizi<br><span>Gharama</span></button>
+<button onclick="showPageById('profit')"><div class="qicon">📊</div>Faida<br><span>Angalia faida</span></button>
+</div>
+
+<div class="section-title">
+<h2>Live Summary</h2>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button class="export-btn" onclick="exportSummary()">📥 Export CSV</button>
+<button class="print-btn" onclick="printReport('summary')">🖨️ Chapisha Ripoti</button>
+</div>
+</div>
+<div class="market">
+<div class="market-card"><b>STOCK</b><span id="stockValue">TZS 0</span></div>
+<div class="market-card"><b>SALES</b><span class="up" id="liveSales">TZS 0 ▲</span></div>
+<div class="market-card"><b>PROFIT</b><span class="up" id="liveProfit">TZS 0 ▲</span></div>
+</div>
+</section>
+
+<!-- BUY -->
+<section id="buy" class="page">
+<div class="section-title"><h2>🛒 Kununua / Kuongeza Bidhaa</h2></div>
+<div class="grid">
+<div class="panel">
+<input type="hidden" id="editProductId" value="">
+<label>Jina la bidhaa</label>
+<input id="productName" placeholder="Mfano: Soda">
+<label>Bei ya kununua kwa moja</label>
+<input id="buyPrice" type="number" placeholder="Mfano: 800">
+<label>Bei ya kuuza kwa moja</label>
+<input id="sellPrice" type="number" placeholder="Mfano: 1200">
+<label>Kiasi</label>
+<input id="qty" type="number" placeholder="Mfano: 20">
+<label>Kiwango cha onyo (stock low)</label>
+<input id="lowThreshold" type="number" placeholder="Mfano: 5" value="5">
+<p style="color:var(--muted);font-size:12px;margin:0 0 10px">💡 Ikiwa jina lipo tayari (mfano Soda), stock itaongezwa — haitaji kuandika mara mbili.</p>
+<button class="primary" id="saveProductBtn" onclick="addProduct()">＋ Hifadhi Bidhaa</button>
+<button class="danger" style="margin-left:8px" onclick="clearBuyForm()">Futa Fomu</button>
+</div>
+<div class="panel">
+<div class="panel-header">
+<h3>Bidhaa Zilizopo</h3>
+<button class="export-btn" onclick="exportProducts()">📥 Export CSV</button>
+</div>
+<div id="productsTable"></div>
+</div>
+</div>
+</section>
+
+<!-- DEBTS (MADENI) -->
+<section id="debts" class="page">
+<div class="section-title">
+<h2>🧾 Madeni ya Wateja</h2>
+<button class="print-btn" onclick="printReport('debts')">🖨️ Chapisha</button>
+</div>
+<div class="grid">
+<div class="panel">
+<label>Jina la mteja</label>
+<input id="debtCustomer" placeholder="Mfano: Juma Ally">
+<label>Kiasi cha deni (TZS)</label>
+<input id="debtAmount" type="number" placeholder="Mfano: 15000">
+<label>Tarehe ya deni</label>
+<input id="debtDate" type="date">
+<label>Maelezo ya ziada</label>
+<input id="debtNotes" placeholder="Mfano: Soda x10, deni la wiki">
+<button class="primary" onclick="addDebt()">＋ Hifadhi Deni</button>
+<button class="danger" style="margin-left:8px" onclick="clearDebtForm()">Futa Fomu</button>
+<div class="note" style="margin-top:14px">
+Deni <b>halihesabiwi</b> kama mapato mpaka mteja alipe. Malipo ya sehemu yanaingia kama mapato kwa kiasi kilicholipwa tu.
+</div>
+</div>
+<div class="panel">
+<div class="panel-header">
+<h3>Orodha ya Madeni</h3>
+<button class="export-btn" onclick="exportDebts()">📥 Export CSV</button>
+</div>
+<p style="color:var(--muted);font-size:13px;margin:0 0 10px">
+Jumla haijalipwa: <strong id="debtsUnpaidLabel" style="color:#ff9f40">TZS 0</strong>
+</p>
+<div id="debtsTable"></div>
+</div>
+</div>
+</section>
+
+<!-- SELL -->
+<section id="sell" class="page">
+<div class="section-title"><h2>💰 Kuuza</h2></div>
+<div class="panel">
+<label>Chagua bidhaa</label>
+<select id="saleProduct"></select>
+<label>Kiasi kilichouzwa</label>
+<input id="saleQty" type="number" min="1" placeholder="Mfano: 2">
+<button class="primary" onclick="makeSale()">＋ Rekodi Mauzo</button>
+<button class="danger" style="margin-left:8px" onclick="clearSellForm()">Futa Fomu</button>
+<div class="panel-header" style="margin-top:20px">
+<h3>Historia ya Mauzo</h3>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button class="export-btn" onclick="exportSales()">📥 Export CSV</button>
+<button class="print-btn" onclick="printReport('sales')">🖨️ Chapisha</button>
+</div>
+</div>
+<div id="salesTable"></div>
+</div>
+</section>
+
+<!-- EXPENSES -->
+<section id="expenses" class="page">
+<div class="section-title"><h2>💸 Matumizi / Gharama</h2></div>
+<div class="grid">
+<div class="panel">
+<label>Jina la matumizi</label>
+<input id="expenseName" placeholder="Mfano: Usafiri">
+<label>Kiasi (TZS)</label>
+<input id="expenseAmount" type="number" placeholder="Mfano: 5000">
+<button class="primary" onclick="addExpense()">＋ Hifadhi Matumizi</button>
+<button class="danger" style="margin-left:8px" onclick="clearExpenseForm()">Futa Fomu</button>
+</div>
+<div class="panel">
+<div class="panel-header">
+<h3>Matumizi yaliyorekodiwa</h3>
+<button class="export-btn" onclick="exportExpenses()">📥 Export CSV</button>
+</div>
+<div id="expensesTable"></div>
+</div>
+</div>
+</section>
+
+<!-- PROFIT -->
+<section id="profit" class="page">
+<div class="section-title">
+<h2>📈 Faida</h2>
+<button class="print-btn" onclick="printReport('profit')">🖨️ Chapisha</button>
+</div>
+<div class="cards">
+<div class="card"><div class="icon">💵</div><small>Mapato ya Mauzo</small><strong id="pSales">TZS 0</strong></div>
+<div class="card"><div class="icon">📦</div><small>Gharama za Bidhaa</small><strong id="pCost">TZS 0</strong></div>
+<div class="card"><div class="icon">💸</div><small>Matumizi Mengine</small><strong id="pExpenses">TZS 0</strong></div>
+<div class="card"><div class="icon">📈</div><small>Faida Halisi</small><strong class="profit" id="pProfit">TZS 0</strong></div>
+</div>
+<div class="panel">
+<h3>Muhtasari wa Faida</h3>
+<div class="note">Faida = Mapato ya mauzo − gharama ya bidhaa zilizouzwa − matumizi mengine.</div>
+<p id="profitSummary" style="color:#a9babf"></p>
+</div>
+</section>
+
+<!-- LOSS -->
+<section id="loss" class="page">
+<div class="section-title">
+<h2>📉 Hasara</h2>
+<button class="print-btn" onclick="printReport('loss')">🖨️ Chapisha</button>
+</div>
+<div class="cards">
+<div class="card"><div class="icon">💵</div><small>Mapato ya Mauzo</small><strong id="lSales">TZS 0</strong></div>
+<div class="card"><div class="icon">📦</div><small>Gharama za Bidhaa</small><strong id="lCost">TZS 0</strong></div>
+<div class="card"><div class="icon">💸</div><small>Matumizi Mengine</small><strong id="lExpenses">TZS 0</strong></div>
+<div class="card"><div class="icon">📉</div><small>Hasara Halisi</small><strong class="loss" id="lLoss">TZS 0</strong></div>
+</div>
+<div class="panel">
+<h3>Muhtasari wa Hasara</h3>
+<div class="note">Hasara = Gharama za bidhaa + matumizi − mapato ya mauzo.</div>
+<p id="lossSummary" style="color:#a9babf"></p>
+</div>
+</section>
+</main>
+
+<div class="bottom-nav">
+<div class="bottom-inner" style="grid-template-columns:repeat(7,1fr)">
+<button class="active" data-page="home" onclick="showPageById('home',this)"><span class="bi">⌂</span>Home</button>
+<button data-page="buy" onclick="showPageById('buy',this)"><span class="bi">＋</span>Buy</button>
+<button data-page="sell" onclick="showPageById('sell',this)"><span class="bi">−</span>Sell</button>
+<button data-page="debts" onclick="showPageById('debts',this)"><span class="bi">🧾</span>Madeni</button>
+<button data-page="profit" onclick="showPageById('profit',this)"><span class="bi">📈</span>Faida</button>
+<button data-page="loss" onclick="showPageById('loss',this)"><span class="bi">📉</span>Hasara</button>
+<button data-page="expenses" onclick="showPageById('expenses',this)"><span class="bi">⚡</span>Gharama</button>
+</div>
+</div>
+</div>
+
+<script>
+/* ============================================================
+   SUPABASE CONFIGURATION
+   Replace ONLY these two values.
+   NEVER put a Supabase service_role/secret key in this file.
+============================================================ */
+const SUPABASE_URL = 'https://aoxlfsfhbrfzvszfgjlg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_U1YrueqSVOtqwdnIPwLUDQ_JGITohIC';
+
+/* ===== SUPABASE SAFE STARTUP ===== */
+function showStartupError(title, message, details = '') {
+  let box = document.getElementById('startupError');
+
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'startupError';
+    document.body.appendChild(box);
+  }
+
+  const safe = value => String(value ?? '').replace(/[<>&"]/g, '');
+
+  box.style.cssText =
+    'position:fixed;inset:0;z-index:999999;display:flex;' +
+    'align-items:center;justify-content:center;padding:24px;' +
+    'background:#07161d;color:#eef7fa;font-family:Arial,sans-serif';
+
+  box.innerHTML = `
+    <div style="width:min(580px,100%);background:#102830;
+      border:1px solid #294a55;border-radius:18px;padding:30px;
+      box-shadow:0 20px 60px rgba(0,0,0,.45)">
+      <div style="font-size:36px;margin-bottom:12px">⚙️</div>
+      <h1 style="margin:0 0 10px;font-size:23px">${safe(title)}</h1>
+      <p style="margin:0 0 18px;color:#b9cbd0;line-height:1.65">${safe(message)}</p>
+      ${details ? `<pre style="white-space:pre-wrap;background:#07161d;border-radius:10px;
+        padding:15px;color:#9fb5bc;font-size:12px;overflow:auto">${safe(details)}</pre>` : ''}
+      <button onclick="location.reload()" style="
+        margin-top:12px;padding:10px 18px;border:0;border-radius:9px;
+        cursor:pointer;font-weight:700">↻ Refresh</button>
+    </div>`;
+}
+
+function validSupabaseConfig() {
+  return Boolean(
+    window.supabase &&
+    typeof window.supabase.createClient === 'function' &&
+    SUPABASE_URL &&
+    SUPABASE_ANON_KEY &&
+    !SUPABASE_URL.includes('YOUR_SUPABASE_URL') &&
+    !SUPABASE_ANON_KEY.includes('YOUR_SUPABASE_ANON_KEY') &&
+    /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(SUPABASE_URL.trim())
+  );
+}
+
+if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+  showStartupError(
+    'Supabase library haijapakia',
+    'Supabase JavaScript library haikupatikana. Hakikisha internet ipo, kisha refresh ukurasa.'
+  );
+  throw new Error('Supabase JavaScript client is unavailable.');
+}
+
+if (!validSupabaseConfig()) {
+  showStartupError(
+    'Weka Supabase keys kwanza',
+    'Programu imefunguka vizuri, lakini bado haijaunganishwa na Supabase. Badilisha values mbili za SUPABASE CONFIGURATION kwa credentials za project yako.',
+    "const SUPABASE_URL = 'https://xxxxxxxx.supabase.co';\nconst SUPABASE_ANON_KEY = 'eyJ...';"
+  );
+  throw new Error('Supabase configuration placeholders are still present.');
+}
+
+let sb;
+
+try {
+  sb = window.supabase.createClient(
+    SUPABASE_URL.trim().replace(/\/$/, ''),
+    SUPABASE_ANON_KEY.trim(),
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    }
+  );
+} catch (error) {
+  showStartupError(
+    'Supabase configuration si sahihi',
+    'Supabase client imeshindwa kuanzishwa. Hakikisha Project URL na anon/publishable key ni sahihi.',
+    error && error.message ? error.message : String(error)
+  );
+  throw error;
+}
+
+/* ===== APP STATE ===== */
+let currentUser = null;
+let currentProfile = null;
+let products = [], sales = [], expenses = [], debts = [], debtPayments = [];
+let profitLossChart = null;
+let editingId = null;
+let notifiedLow = new Set();
+const DEFAULT_LOW = 5;
+
+/* ===== HELPERS ===== */
+function safeNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+function todayLocalKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getTodayKey() { return todayLocalKey(); }
+function escapeHTML(value) {
+  return String(value ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+const money = n => 'TZS ' + safeNumber(n).toLocaleString('en-US');
+function currentIdentity() {
+  return currentProfile?.username || currentUser?.email || '';
+}
+function authError(error, fallback='Kuna tatizo. Jaribu tena.') {
+  console.error(error);
+  return error?.message || fallback;
+}
+function requireUser() {
+  if (!currentUser) {
+    showAuth();
+    throw new Error('Hujaingia kwenye akaunti.');
+  }
+  return currentUser;
+}
+
+/* ===== AUTH UI ===== */
+function switchAuthTab(tab) {
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('tabForgot').classList.toggle('active', tab === 'forgot');
+  document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('forgotForm').style.display = tab === 'forgot' ? 'block' : 'none';
+  document.getElementById('authSubtitle').textContent = tab === 'forgot' ? 'Rudisha nenosiri lako' : 'Ingia au unda akaunti';
+  hideAuthMessages();
+}
+function hideAuthMessages() {
+  ['authError','authSuccess','authInfo'].forEach(id => document.getElementById(id).style.display='none');
+}
+function showAuthError(msg) {
+  const el=document.getElementById('authError'); el.textContent=msg; el.style.display='block';
+  document.getElementById('authSuccess').style.display='none';
+  document.getElementById('authInfo').style.display='none';
+}
+function showAuthSuccess(msg) {
+  const el=document.getElementById('authSuccess'); el.textContent=msg; el.style.display='block';
+  document.getElementById('authError').style.display='none';
+  document.getElementById('authInfo').style.display='none';
+}
+function showAuthInfo(msg) {
+  const el=document.getElementById('authInfo'); el.textContent=msg; el.style.display='block';
+  document.getElementById('authError').style.display='none';
+}
+
+async function resolveIdentity(identity) {
+  const value = String(identity || '').trim();
+  if (!value) return null;
+  if (value.includes('@')) return value.toLowerCase();
+  const { data, error } = await sb.rpc('resolve_login_email', { p_identity: value });
+  if (error) throw error;
+  return data || null;
+}
+
+async function doRegister() {
+  const username=document.getElementById('regUser').value.trim();
+  const phone=document.getElementById('regPhone').value.trim();
+  const email=document.getElementById('regEmail').value.trim().toLowerCase();
+  const pass=document.getElementById('regPass').value;
+  const pass2=document.getElementById('regPass2').value;
+  if (!username || username.length<3) return showAuthError('Jina liwe angalau herufi 3.');
+  if (!phone || phone.length<9) return showAuthError('Weka namba ya simu sahihi.');
+  if (!email || !email.includes('@')) return showAuthError('Weka email sahihi.');
+  if (!pass || pass.length<4) return showAuthError('Nenosiri liwe angalau herufi 4.');
+  if (pass!==pass2) return showAuthError('Nenosiri hazilingani.');
+
+  try {
+    const { data: existingName, error: nameError } = await sb.rpc('username_exists', { p_username: username });
+    if (nameError) throw nameError;
+    if (existingName) return showAuthError('Jina hilo tayari limetumika.');
+
+    const { data: existingPhone, error: phoneError } = await sb.rpc('phone_exists', { p_phone: phone });
+    if (phoneError) throw phoneError;
+    if (existingPhone) return showAuthError('Namba ya simu tayari imetumika.');
+
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password: pass,
+      options: { data: { username, phone } }
+    });
+    if (error) throw error;
+
+    ['regUser','regPhone','regEmail','regPass','regPass2'].forEach(id=>document.getElementById(id).value='');
+    if (data.session) {
+      showAuthSuccess('Akaunti imeundwa na umeingia.');
+      await loadSession(data.session);
+    } else {
+      showAuthSuccess('Akaunti imeundwa. Angalia email yako kuthibitisha akaunti, kisha ingia.');
+      switchAuthTab('login');
+      document.getElementById('loginUser').value=email;
+    }
+  } catch (e) {
+    showAuthError(authError(e));
+  }
+}
+
+async function doLogin() {
+  const identity=document.getElementById('loginUser').value.trim();
+  const pass=document.getElementById('loginPass').value;
+  if (!identity || !pass) return showAuthError('Jaza jina/email/simu na nenosiri.');
+  try {
+    const email=await resolveIdentity(identity);
+    if (!email) return showAuthError('Jina, email au simu haipatikani.');
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+    document.getElementById('loginPass').value='';
+    await loadSession(data.session);
+  } catch(e) {
+    showAuthError(authError(e, 'Jina, email, simu au nenosiri si sahihi.'));
+  }
+}
+
+async function sendOtp() {
+  const identity=document.getElementById('forgotIdentity').value.trim();
+  if (!identity) return showAuthError('Andika jina, email au simu.');
+  try {
+    const email=await resolveIdentity(identity);
+    if (!email) return showAuthError('Akaunti haipatikani.');
+    const redirectTo=window.location.origin + window.location.pathname;
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw error;
+    showAuthInfo('Link ya kubadilisha nenosiri imetumwa kwenye email yako. Fungua email hiyo na ufuate link.');
+  } catch(e) {
+    showAuthError(authError(e));
+  }
+}
+
+async function resetPassword() {
+  const pass=document.getElementById('newPass').value;
+  const pass2=document.getElementById('newPass2').value;
+  if (!pass || pass.length<4) return showAuthError('Nenosiri jipya liwe angalau herufi 4.');
+  if (pass!==pass2) return showAuthError('Nenosiri hazilingani.');
+  try {
+    const { error } = await sb.auth.updateUser({ password: pass });
+    if (error) throw error;
+    document.getElementById('newPass').value='';
+    document.getElementById('newPass2').value='';
+    showAuthSuccess('Nenosiri limebadilishwa. Sasa unaweza kuendelea kutumia akaunti.');
+  } catch(e) { showAuthError(authError(e)); }
+}
+
+async function logout() {
+  try { await sb.auth.signOut(); } catch(e) { console.error(e); }
+  currentUser=null; currentProfile=null;
+  products=[]; sales=[]; expenses=[]; debts=[]; debtPayments=[];
+  if (profitLossChart) { profitLossChart.destroy(); profitLossChart=null; }
+  notifiedLow=new Set();
+  showAuth();
+}
+function showAuth() {
+  document.getElementById('authScreen').classList.add('show');
+  document.getElementById('authScreen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  hideAuthMessages();
+}
+async function showApp() {
+  document.getElementById('authScreen').classList.remove('show');
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('currentUser').textContent='👤 ' + (currentProfile?.username || currentUser?.email || '') + (currentProfile?.phone ? ' · '+currentProfile.phone : '');
+  requestNotificationPermission();
+  const debtDateEl=document.getElementById('debtDate');
+  if (debtDateEl && !debtDateEl.value) debtDateEl.value=todayLocalKey();
+  await loadUserData();
+  render();
+}
+async function loadSession(session) {
+  if (!session?.user) return showAuth();
+  currentUser=session.user;
+  const { data: profile, error } = await sb.from('profiles').select('*').eq('id',currentUser.id).maybeSingle();
+  if (error) throw error;
+  currentProfile=profile;
+  await showApp();
+}
+
+/* ===== SUPABASE DATA ===== */
+async function loadUserData() {
+  requireUser();
+  const uid=currentUser.id;
+  const results=await Promise.all([
+    sb.from('products').select('*').eq('user_id',uid).order('created_at',{ascending:true}),
+    sb.from('sales').select('*').eq('user_id',uid).order('created_at',{ascending:true}),
+    sb.from('expenses').select('*').eq('user_id',uid).order('created_at',{ascending:true}),
+    sb.from('debts').select('*').eq('user_id',uid).order('created_at',{ascending:true}),
+    sb.from('debt_payments').select('*').eq('user_id',uid).order('created_at',{ascending:true})
+  ]);
+  for (const r of results) if (r.error) throw r.error;
+  products=results[0].data.map(p=>({id:p.id,name:p.name,buy:safeNumber(p.buy_price),sell:safeNumber(p.sell_price),qty:safeNumber(p.quantity),lowThreshold:safeNumber(p.low_threshold)}));
+  sales=results[1].data.map(s=>({id:s.id,date:s.display_date||s.date_iso,dateISO:s.date_iso,productId:s.product_id,product:s.product_name,qty:s.quantity,amount:s.amount,cost:s.cost}));
+  expenses=results[2].data.map(e=>({id:e.id,date:e.display_date||e.date_iso,dateISO:e.date_iso,name:e.name,amount:e.amount}));
+  debts=results[3].data.map(d=>({id:d.id,customer:d.customer,amount:d.amount,paidAmount:d.paid_amount,balance:d.balance,date:d.debt_date,notes:d.notes,paid:d.status==='paid',status:d.status,paidDate:d.paid_date,lastPaymentDate:d.last_payment_date}));
+  debtPayments=results[4].data.map(p=>({id:p.id,debtId:p.debt_id,customer:p.customer,amount:p.amount,date:p.display_date||p.date_iso,dateISO:p.date_iso}));
+}
+
+/* Compatibility helper: all mutations below write directly to Supabase. */
+async function save() {
+  await loadUserData();
+  render();
+  return true;
+}
+
+/* ===== NAV ===== */
+function showPage(id,btn) {
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  const page=document.getElementById(id); if(page) page.classList.add('active');
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+  if(btn && btn.closest('nav')) btn.classList.add('active');
+  else { const navBtn=document.querySelector(`nav button[data-page="${id}"]`); if(navBtn) navBtn.classList.add('active'); }
+  document.querySelectorAll('.bottom-nav button').forEach(x=>x.classList.remove('active'));
+  const bottomBtn=document.querySelector(`.bottom-nav button[data-page="${id}"]`); if(bottomBtn) bottomBtn.classList.add('active');
+  render(); window.scrollTo({top:0,behavior:'smooth'});
+}
+function showPageById(id,btn){ showPage(id,btn); }
+
+/* ===== PRODUCTS ===== */
+async function addProduct() {
+  try {
+    requireUser();
+    const name=document.getElementById('productName').value.trim();
+    const buy=safeNumber(document.getElementById('buyPrice').value);
+    const sell=safeNumber(document.getElementById('sellPrice').value);
+    const qty=safeNumber(document.getElementById('qty').value);
+    const low=safeNumber(document.getElementById('lowThreshold').value)||DEFAULT_LOW;
+    if(!name||buy<=0||sell<=0||qty<=0) return alert('Jaza taarifa zote vizuri.');
+
+    if(editingId){
+      const conflict=products.find(x=>x.id!==editingId && x.name.toLowerCase()===name.toLowerCase());
+      if(conflict) return alert('Jina hilo linatumika na bidhaa nyingine.');
+      const {error}=await sb.from('products').update({name,buy_price:buy,sell_price:sell,quantity:qty,low_threshold:low}).eq('id',editingId).eq('user_id',currentUser.id);
+      if(error) throw error;
+      clearBuyForm(); await save(); alert('Bidhaa imesasishwa.'); return;
+    }
+
+    const existing=products.find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(existing){
+      const {error}=await sb.from('products').update({quantity:existing.qty+qty,buy_price:buy,sell_price:sell,low_threshold:low}).eq('id',existing.id).eq('user_id',currentUser.id);
+      if(error) throw error;
+      clearBuyForm(); await save(); alert(`Stock ya "${existing.name}" imeongezwa. Sasa stock: ${existing.qty+qty}`); return;
+    }
+    const {error}=await sb.from('products').insert({user_id:currentUser.id,name,buy_price:buy,sell_price:sell,quantity:qty,low_threshold:low});
+    if(error) throw error;
+    clearBuyForm(); await save(); alert('Bidhaa imeongezwa.');
+  } catch(e){ alert(authError(e)); }
+}
+function startEditProduct(id){
+  const p=products.find(x=>String(x.id)===String(id)); if(!p) return;
+  editingId=id; document.getElementById('editProductId').value=id;
+  document.getElementById('productName').value=p.name; document.getElementById('buyPrice').value=p.buy;
+  document.getElementById('sellPrice').value=p.sell; document.getElementById('qty').value=p.qty;
+  document.getElementById('lowThreshold').value=p.lowThreshold??DEFAULT_LOW;
+  document.getElementById('saveProductBtn').textContent='💾 Sasisha Bidhaa'; showPageById('buy'); window.scrollTo({top:0,behavior:'smooth'});
+}
+function clearBuyForm(){
+  editingId=null; document.getElementById('editProductId').value='';
+  ['productName','buyPrice','sellPrice','qty'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('lowThreshold').value='5'; document.getElementById('saveProductBtn').textContent='＋ Hifadhi Bidhaa';
+}
+
+/* ===== SALES ===== */
+async function makeSale(){
+  try{
+    requireUser();
+    const productId=document.getElementById('saleProduct').value;
+    const qty=safeNumber(document.getElementById('saleQty').value);
+    if(!productId||qty<=0||!Number.isInteger(qty)) return alert('Chagua bidhaa na weka kiasi kamili kinachozidi 0.');
+    const p=products.find(x=>String(x.id)===String(productId));
+    if(!p) return alert('Bidhaa haipatikani.');
+    if(p.qty<qty) return alert(`Stock haitoshi. Stock iliyopo: ${p.qty}`);
+    const {error}=await sb.rpc('record_sale',{p_product_id:p.id,p_quantity:qty});
+    if(error) throw error;
+    document.getElementById('saleQty').value=''; await save();
+    const updated=products.find(x=>x.id===p.id); if(updated) checkLowStock(updated);
+    alert('Mauzo yamehifadhiwa.');
+  }catch(e){alert(authError(e));}
+}
+function clearSellForm(){document.getElementById('saleQty').value='';}
+
+/* ===== EXPENSES ===== */
+async function addExpense(){
+  try{
+    requireUser(); const name=document.getElementById('expenseName').value.trim(); const amount=safeNumber(document.getElementById('expenseAmount').value);
+    if(!name||amount<=0) return alert('Jaza matumizi na kiasi.');
+    const {error}=await sb.from('expenses').insert({user_id:currentUser.id,name,amount,date_iso:todayLocalKey(),display_date:new Date().toLocaleString('sw-TZ')});
+    if(error) throw error; clearExpenseForm(); await save(); alert('Matumizi yamehifadhiwa.');
+  }catch(e){alert(authError(e));}
+}
+function clearExpenseForm(){document.getElementById('expenseName').value='';document.getElementById('expenseAmount').value='';}
+
+/* ===== DEBTS ===== */
+async function addDebt(){
+  try{
+    requireUser(); const customer=document.getElementById('debtCustomer').value.trim(); const amount=safeNumber(document.getElementById('debtAmount').value);
+    const date=document.getElementById('debtDate').value||todayLocalKey(); const notes=document.getElementById('debtNotes').value.trim();
+    if(!customer) return alert('Andika jina la mteja.'); if(amount<=0) return alert('Weka kiasi cha deni kinachozidi TZS 0.');
+    const {error}=await sb.from('debts').insert({user_id:currentUser.id,customer,amount,paid_amount:0,balance:amount,debt_date:date,notes,status:'unpaid'});
+    if(error) throw error; clearDebtForm(); await save(); alert('Deni limehifadhiwa. Halijahesabiwa kama mapato mpaka lilipwe.');
+  }catch(e){alert(authError(e));}
+}
+function clearDebtForm(){document.getElementById('debtCustomer').value='';document.getElementById('debtAmount').value='';document.getElementById('debtDate').value=todayLocalKey();document.getElementById('debtNotes').value='';}
+async function payDebt(id){
+  try{
+    requireUser(); const debt=debts.find(d=>String(d.id)===String(id)); if(!debt) return alert('Deni halijapatikana.');
+    const balance=Math.max(0,safeNumber(debt.balance)); if(balance<=0) return alert('Deni hili tayari limelipwa lote.');
+    const input=prompt(`Mteja: ${debt.customer}\nDeni: ${money(debt.amount)}\nLimeshalipwa: ${money(debt.paidAmount)}\nSalio: ${money(balance)}\n\nAndika kiasi alicholipa:`);
+    if(input===null) return; const amountPaid=safeNumber(String(input).replace(/,/g,''));
+    if(amountPaid<=0) return alert('Weka kiasi cha malipo kinachozidi TZS 0.'); if(amountPaid>balance) return alert(`Malipo yanazidi salio. Salio ni ${money(balance)}.`);
+    const {error}=await sb.rpc('record_debt_payment',{p_debt_id:debt.id,p_amount:amountPaid}); if(error) throw error;
+    await save(); const updated=debts.find(d=>d.id===debt.id); alert(updated?.balance<=0?'Deni limelipwa lote ✓. Malipo yameongezwa kwenye mapato.':`Malipo yamehifadhiwa ✓. Salio: ${money(updated?.balance||0)}`);
+  }catch(e){alert(authError(e));}
+}
+function markDebtPaid(id){payDebt(id);}
+async function deleteDebt(id){
+  const d=debts.find(x=>String(x.id)===String(id)); if(!d) return;
+  const paid=safeNumber(d.paidAmount); const message=paid>0?`Deni hili lina malipo ya ${money(paid)}. Ukilifuta, history ya malipo pia itaondolewa. Endelea?`:'Una uhakika unataka kufuta deni hili?';
+  if(!confirm(message)) return;
+  try{const {error}=await sb.from('debts').delete().eq('id',id).eq('user_id',currentUser.id);if(error)throw error;await save();}catch(e){alert(authError(e));}
+}
+function getUnpaidDebtsTotal(){return debts.reduce((t,d)=>t+Math.max(0,safeNumber(d.amount)-safeNumber(d.paidAmount)),0);}
+function getDebtPaymentsTotal(){return debtPayments.reduce((t,p)=>t+safeNumber(p.amount),0);}
+function calculateBusinessTotals(){
+  const salesOnly=sales.reduce((t,s)=>t+safeNumber(s.amount),0), debtPaymentsTotal=getDebtPaymentsTotal(), totalRevenue=salesOnly+debtPaymentsTotal;
+  const costOfGoods=sales.reduce((t,s)=>t+safeNumber(s.cost),0), expensesTotal=expenses.reduce((t,e)=>t+safeNumber(e.amount),0), netProfit=totalRevenue-costOfGoods-expensesTotal;
+  return {salesOnly,debtPaymentsTotal,totalRevenue,costOfGoods,expensesTotal,netProfit,profit:Math.max(0,netProfit),loss:Math.max(0,-netProfit),unpaidDebts:getUnpaidDebtsTotal()};
+}
+
+/* ===== DELETE ===== */
+async function del(type,id){
+  let msg='Una uhakika unataka kufuta?'; if(type==='product')msg='Una uhakika unataka kufuta bidhaa hii?'; if(type==='expense')msg='Una uhakika unataka kufuta matumizi haya?'; if(type==='sale')msg='Una uhakika unataka kufuta mauzo haya? Stock itarejeshwa.';
+  if(!confirm(msg))return;
+  try{
+    if(type==='product'){
+      const {count}=await sb.from('sales').select('id',{count:'exact',head:true}).eq('product_id',id).eq('user_id',currentUser.id);
+      if(count>0) return alert('Bidhaa hii ina historia ya mauzo. Huwezi kuifuta; unaweza kuacha stock 0 au kuibadilisha.');
+      const {error}=await sb.from('products').delete().eq('id',id).eq('user_id',currentUser.id); if(error)throw error;
+    } else if(type==='expense'){
+      const {error}=await sb.from('expenses').delete().eq('id',id).eq('user_id',currentUser.id); if(error)throw error;
+    } else if(type==='sale'){
+      const {error}=await sb.rpc('delete_sale',{p_sale_id:id}); if(error)throw error;
+    }
+    await save();
+  }catch(e){alert(authError(e));}
+}
+
+/* ===== LOW STOCK ===== */
+function requestNotificationPermission(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
+function checkLowStock(product){const th=product.lowThreshold??DEFAULT_LOW;if(product.qty<=th&&product.qty>=0)showBrowserNotification('Stock inakaribia kuisha!',`${product.name}: zimebaki ${product.qty} tu (kiwango: ${th})`);}
+function showBrowserNotification(title,body){if('Notification'in window&&Notification.permission==='granted')new Notification(title,{body});}
+function getLowStockProducts(){return products.filter(p=>p.qty<=(p.lowThreshold??DEFAULT_LOW));}
+
+/* ===== TOP SELLERS ===== */
+function getTopSellers(limit=5){const map={};sales.forEach(s=>{if(!map[s.product])map[s.product]={name:s.product,qty:0,amount:0};map[s.product].qty+=safeNumber(s.qty);map[s.product].amount+=safeNumber(s.amount);});return Object.values(map).sort((a,b)=>b.qty-a.qty).slice(0,limit);}
+function isTodaySale(s){return !!s&&s.dateISO===getTodayKey();}
+function getTodaySalesTotal(){return sales.filter(isTodaySale).reduce((t,s)=>t+safeNumber(s.amount),0);}
+
+/* ===== EXPORT ===== */
+function downloadCSV(filename,rows){const csv=rows.map(row=>row.map(cell=>{const str=String(cell??'');return str.includes(',')||str.includes('"')||str.includes('\n')?'"'+str.replace(/"/g,'""')+'"':str;}).join(',')).join('\n');const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);}
+function exportProducts(){if(!products.length)return alert('Hakuna bidhaa.');downloadCSV(`bidhaa_${currentIdentity()}_${todayLocalKey()}.csv`,[['Jina','Stock','Kununua','Kuuza','Thamani','Low Threshold'],...products.map(p=>[p.name,p.qty,p.buy,p.sell,p.qty*p.sell,p.lowThreshold??DEFAULT_LOW])]);}
+function exportSales(){if(!sales.length)return alert('Hakuna mauzo.');downloadCSV(`mauzo_${currentIdentity()}_${todayLocalKey()}.csv`,[['Tarehe','Bidhaa','Kiasi','Mapato','Gharama','Faida'],...sales.map(s=>[s.date,s.product,s.qty,s.amount,s.cost,s.amount-s.cost])]);}
+function exportExpenses(){if(!expenses.length)return alert('Hakuna matumizi.');downloadCSV(`matumizi_${currentIdentity()}_${todayLocalKey()}.csv`,[['Tarehe','Matumizi','Kiasi'],...expenses.map(e=>[e.date,e.name,e.amount])]);}
+function exportDebts(){if(!debts.length)return alert('Hakuna madeni.');downloadCSV(`madeni_${currentIdentity()}_${todayLocalKey()}.csv`,[['Mteja','Deni','Imelipwa','Salio','Tarehe','Maelezo','Hali','Tarehe ya Malipo'],...debts.map(d=>[d.customer,d.amount,d.paidAmount,d.balance,d.date,d.notes||'',d.balance<=0?'Limelipwa ✓':d.paidAmount>0?'Sehemu imelipwa':'Bado Halijalipwa',d.paidDate||d.lastPaymentDate||''])]);}
+function exportSummary(){const t=calculateBusinessTotals(),stock=products.reduce((a,x)=>a+safeNumber(x.qty),0),stockValue=products.reduce((a,x)=>a+safeNumber(x.qty)*safeNumber(x.buy),0);downloadCSV(`muhtasari_${currentIdentity()}_${todayLocalKey()}.csv`,[['MUHTASARI WA BIASHARA'],['Tarehe',new Date().toLocaleString('sw-TZ')],['Mtumiaji',currentIdentity()],[],['Kipengele','Kiasi'],['Mauzo (cash)',t.salesOnly],['Malipo ya madeni',t.debtPaymentsTotal],['Jumla ya Mapato',t.totalRevenue],['Gharama za Bidhaa',t.costOfGoods],['Matumizi',t.expensesTotal],['Faida/Hasara',t.netProfit],['Madeni hayajalipwa',t.unpaidDebts],['Stock (idadi)',stock],['Thamani ya Stock',stockValue]]);}
+
+/* ===== PRINT ===== */
+function salesTableHtml(){if(!sales.length)return'<p>Hakuna mauzo.</p>';return`<table><thead><tr><th>Tarehe</th><th>Bidhaa</th><th>Kiasi</th><th>Mapato</th></tr></thead><tbody>${sales.slice().reverse().map(s=>`<tr><td>${escapeHTML(s.date)}</td><td>${escapeHTML(s.product)}</td><td>${s.qty}</td><td>${money(s.amount)}</td></tr>`).join('')}</tbody></table>`;}
+function expensesTableHtml(){if(!expenses.length)return'<p>Hakuna matumizi.</p>';return`<table><thead><tr><th>Tarehe</th><th>Matumizi</th><th>Kiasi</th></tr></thead><tbody>${expenses.map(e=>`<tr><td>${escapeHTML(e.date)}</td><td>${escapeHTML(e.name)}</td><td>${money(e.amount)}</td></tr>`).join('')}</tbody></table>`;}
+function printReport(type){
+  const user=currentIdentity(),now=new Date().toLocaleString('sw-TZ'),t=calculateBusinessTotals(),stock=products.reduce((a,x)=>a+safeNumber(x.qty),0),stockValue=products.reduce((a,x)=>a+safeNumber(x.qty)*safeNumber(x.buy),0);let title='Ripoti',body='';
+  if(type==='summary'){title='Ripoti ya Muhtasari wa Biashara';body=`<table><tr><td>Mtumiaji</td><td><b>${escapeHTML(user)}</b></td></tr><tr><td>Tarehe</td><td>${now}</td></tr><tr><td>Mauzo (cash)</td><td>${money(t.salesOnly)}</td></tr><tr><td>Malipo ya madeni</td><td>${money(t.debtPaymentsTotal)}</td></tr><tr><td><b>Jumla ya Mapato</b></td><td><b>${money(t.totalRevenue)}</b></td></tr><tr><td>Gharama za bidhaa</td><td>${money(t.costOfGoods)}</td></tr><tr><td>Matumizi</td><td>${money(t.expensesTotal)}</td></tr><tr><td><b>Faida / Hasara</b></td><td><b>${money(t.netProfit)}</b></td></tr><tr><td>Madeni hayajalipwa</td><td>${money(t.unpaidDebts)}</td></tr><tr><td>Stock</td><td>${stock}</td></tr><tr><td>Thamani ya stock</td><td>${money(stockValue)}</td></tr></table><h3>Historia ya Mauzo</h3>${salesTableHtml()}<h3>Matumizi</h3>${expensesTableHtml()}`;}
+  else if(type==='profit'){title='Ripoti ya Faida';body=`<table><tr><td>Mtumiaji</td><td>${escapeHTML(user)}</td></tr><tr><td>Mapato</td><td>${money(t.totalRevenue)}</td></tr><tr><td>Gharama za bidhaa</td><td>${money(t.costOfGoods)}</td></tr><tr><td>Matumizi</td><td>${money(t.expensesTotal)}</td></tr><tr><td><b>Faida Halisi</b></td><td><b>${money(t.profit)}</b></td></tr></table>`;}
+  else if(type==='loss'){title='Ripoti ya Hasara';body=`<table><tr><td>Mtumiaji</td><td>${escapeHTML(user)}</td></tr><tr><td>Mapato</td><td>${money(t.totalRevenue)}</td></tr><tr><td>Gharama za bidhaa</td><td>${money(t.costOfGoods)}</td></tr><tr><td>Matumizi</td><td>${money(t.expensesTotal)}</td></tr><tr><td><b>Hasara Halisi</b></td><td><b>${money(t.loss)}</b></td></tr></table>`;}
+  else if(type==='debts'){title='Ripoti ya Madeni ya Wateja';body=`<p><b>Jumla haijalipwa:</b> ${money(t.unpaidDebts)}</p><table><thead><tr><th>Mteja</th><th>Deni</th><th>Imelipwa</th><th>Salio</th><th>Tarehe</th><th>Maelezo</th><th>Hali</th></tr></thead><tbody>${debts.length?debts.map(d=>`<tr><td>${escapeHTML(d.customer)}</td><td>${money(d.amount)}</td><td>${money(d.paidAmount)}</td><td>${money(d.balance)}</td><td>${escapeHTML(d.date)}</td><td>${escapeHTML(d.notes||'—')}</td><td>${d.balance<=0?'✓ Limelipwa':d.paidAmount>0?'◐ Sehemu imelipwa':'Bado Halijalipwa'}</td></tr>`).join(''):'<tr><td colspan="7">Hakuna madeni</td></tr>'}</tbody></table>`;}
+  else if(type==='sales'){title='Ripoti ya Mauzo';body=`<p>Jumla ya mauzo (cash): <b>${money(t.salesOnly)}</b></p>${salesTableHtml()}`;}
+  const html=`<!DOCTYPE html><html lang="sw"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Arial;color:#111;padding:24px;max-width:800px;margin:auto}table{width:100%;border-collapse:collapse;margin:12px 0 20px}th,td{border:1px solid #ccc;padding:8px;text-align:left;font-size:13px}th{background:#f0f0f0}</style></head><body><h1>📊 Mfumo wa Mauzo — ${title}</h1><p>Imechapishwa: ${escapeHTML(now)} · Mtumiaji: ${escapeHTML(user)}</p>${body}<button onclick="window.print()">🖨️ Chapisha sasa</button><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
+  const w=window.open('','_blank','width=900,height=700');if(!w)return alert('Ruhusu pop-up ili uchapishe ripoti.');w.document.write(html);w.document.close();
+}
+
+/* ===== CHART ===== */
+function updateChart(salesTotal,cost,exp,net){const ctx=document.getElementById('profitLossChart');if(!ctx)return;if(profitLossChart)profitLossChart.destroy();const isProfit=net>=0;profitLossChart=new Chart(ctx,{type:'bar',data:{labels:['Mapato','Gharama','Matumizi','Faida/Hasara'],datasets:[{data:[salesTotal,cost,exp,Math.abs(net)],backgroundColor:['rgba(37,169,232,.75)','rgba(255,105,116,.75)','rgba(255,159,64,.75)',isProfit?'rgba(54,224,160,.85)':'rgba(255,105,116,.85)'],borderColor:['#25a9e8','#ff6974','#ff9f40',isProfit?'#36e0a0':'#ff6974'],borderWidth:2,borderRadius:10}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'#9eb0b5'},grid:{color:'rgba(41,68,76,.5)'}},x:{ticks:{color:'#9eb0b5'},grid:{display:false}}}}});}
+
+/* ===== RENDER ===== */
+function render(){
+  const t=calculateBusinessTotals(),stock=products.reduce((a,p)=>a+safeNumber(p.qty),0),stockValue=products.reduce((a,p)=>a+safeNumber(p.qty)*safeNumber(p.buy),0),todayTotal=getTodaySalesTotal()+debtPayments.filter(p=>p.dateISO===getTodayKey()).reduce((a,p)=>a+safeNumber(p.amount),0);
+  const setText=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  setText('stockCount',stock);setText('salesTotal',money(t.totalRevenue));setText('todaySales',money(todayTotal));setText('expenseTotal',money(t.expensesTotal));setText('unpaidDebtsTotal',money(t.unpaidDebts));setText('profitTotal',money(t.netProfit));setText('businessValue',money(stockValue+t.totalRevenue));setText('profitChange',money(t.netProfit));setText('stockValue',money(stockValue));setText('liveSales',money(t.totalRevenue)+' ▲');setText('liveProfit',money(t.netProfit)+(t.netProfit>=0?' ▲':' ▼'));
+  const lp=document.getElementById('liveProfit');if(lp)lp.className=t.netProfit>=0?'up':'down';const ul=document.getElementById('debtsUnpaidLabel');if(ul)ul.textContent=money(t.unpaidDebts);
+  setText('pSales',money(t.totalRevenue));setText('pCost',money(t.costOfGoods));setText('pExpenses',money(t.expensesTotal));setText('pProfit',money(t.profit));setText('profitSummary',t.profit>0?'Hongera! Una faida ya '+money(t.profit)+'. Mapato yanajumuisha malipo ya madeni yaliyolipwa.':'Hakuna faida kwa sasa. Angalia sehemu ya Hasara.');
+  setText('lSales',money(t.totalRevenue));setText('lCost',money(t.costOfGoods));setText('lExpenses',money(t.expensesTotal));setText('lLoss',money(t.loss));setText('lossSummary',t.loss>0?'Una hasara ya '+money(t.loss)+'.':'Hakuna hasara kwa sasa.');updateChart(t.totalRevenue,t.costOfGoods,t.expensesTotal,t.netProfit);
+
+  const debtsEl=document.getElementById('debtsTable');if(debtsEl){if(!debts.length)debtsEl.innerHTML='<div class="empty">Hakuna madeni yaliyorekodiwa.</div>';else{const sorted=[...debts].sort((a,b)=>safeNumber(a.balance)-safeNumber(b.balance));debtsEl.innerHTML=`<table><tr><th>Mteja</th><th>Deni</th><th>Imelipwa</th><th>Salio</th><th>Tarehe</th><th>Maelezo</th><th>Hali</th><th></th></tr>${sorted.map(d=>`<tr style="${d.balance<=0?'opacity:.75':''}"><td>${escapeHTML(d.customer)}</td><td>${money(d.amount)}</td><td>${money(d.paidAmount)}</td><td><b>${money(d.balance)}</b></td><td>${escapeHTML(d.date)}</td><td>${escapeHTML(d.notes||'—')}</td><td>${d.balance<=0?'<span class="up">✓ Limelipwa</span>':d.paidAmount>0?'<span style="color:#25a9e8">◐ Sehemu imelipwa</span>':'<span style="color:#ff9f40">Bado Halijalipwa</span>'}</td><td style="white-space:nowrap">${d.balance>0?`<button class="primary" style="padding:6px 10px;font-size:12px;margin-right:4px" onclick='markDebtPaid(${JSON.stringify(String(d.id))})'>Lipa</button>`:''}<button class="danger" onclick='deleteDebt(${JSON.stringify(String(d.id))})'>Futa</button></td></tr>`).join('')}</table>`;}}
+
+  const lowList=getLowStockProducts(),alertBar=document.getElementById('lowStockAlert'),alertList=document.getElementById('lowStockList');if(alertBar&&alertList){if(lowList.length){alertBar.classList.add('show');alertList.innerHTML=lowList.map(p=>`<div class="alert-item">• <b>${escapeHTML(p.name)}</b> — zimebaki <b>${p.qty}</b> (onyo ≤ ${p.lowThreshold??DEFAULT_LOW})</div>`).join('');lowList.forEach(p=>{const key=p.id+'_'+p.qty;if(!notifiedLow.has(key)){notifiedLow.add(key);showBrowserNotification('⚠️ Stock low',`${p.name}: zimebaki ${p.qty}`);}});}else alertBar.classList.remove('show');}
+
+  const top=getTopSellers(5),topPanel=document.getElementById('topSellersPanel');if(topPanel)topPanel.innerHTML=top.length?`<table><tr><th>#</th><th>Bidhaa</th><th>Idadi iliyouzwa</th><th>Mapato</th></tr>${top.map((x,i)=>`<tr><td>${i+1}</td><td>${escapeHTML(x.name)}${i===0?' <span class="top-seller-badge">TOP</span>':''}</td><td>${x.qty}</td><td>${money(x.amount)}</td></tr>`).join('')}</table>`:'<div class="empty">Hakuna mauzo bado.</div>';
+
+  const productsEl=document.getElementById('productsTable');if(productsEl)productsEl.innerHTML=products.length?`<table><tr><th>Bidhaa</th><th>Stock</th><th>Kununua</th><th>Kuuza</th><th></th></tr>${products.map(p=>{const low=safeNumber(p.qty)<=safeNumber(p.lowThreshold??DEFAULT_LOW);return`<tr class="${low?'low-stock':''}"><td>${escapeHTML(p.name)}${low?' ⚠️':''}</td><td>${p.qty}</td><td>${money(p.buy)}</td><td>${money(p.sell)}</td><td style="white-space:nowrap"><button class="export-btn" style="padding:6px 10px;font-size:12px;margin-right:4px" onclick='startEditProduct(${JSON.stringify(String(p.id))})'>Edit</button><button class="danger" onclick='del("product",${JSON.stringify(String(p.id))})'>Futa</button></td></tr>`;}).join('')}</table>`:'<div class="empty">Hakuna bidhaa bado.</div>';
+  const saleProductEl=document.getElementById('saleProduct');if(saleProductEl)saleProductEl.innerHTML=products.length?products.map(p=>`<option value="${escapeHTML(p.id)}">${escapeHTML(p.name)} — Stock: ${p.qty}${p.qty<=p.lowThreshold?' ⚠️':''} — ${money(p.sell)}</option>`).join(''):'<option value="">Hakuna bidhaa</option>';
+  const salesEl=document.getElementById('salesTable');if(salesEl)salesEl.innerHTML=sales.length?`<table><tr><th>Tarehe</th><th>Bidhaa</th><th>Kiasi</th><th>Mapato</th><th></th></tr>${sales.slice().reverse().map(s=>`<tr><td>${escapeHTML(s.date)}</td><td>${escapeHTML(s.product)}</td><td>${s.qty}</td><td>${money(s.amount)}</td><td><button class="danger" onclick='del("sale",${JSON.stringify(String(s.id))})'>Futa</button></td></tr>`).join('')}</table>`:'<div class="empty">Hakuna mauzo bado.</div>';
+  const expensesEl=document.getElementById('expensesTable');if(expensesEl)expensesEl.innerHTML=expenses.length?`<table><tr><th>Tarehe</th><th>Matumizi</th><th>Kiasi</th><th></th></tr>${expenses.map(e=>`<tr><td>${escapeHTML(e.date)}</td><td>${escapeHTML(e.name)}</td><td>${money(e.amount)}</td><td><button class="danger" onclick='del("expense",${JSON.stringify(String(e.id))})'>Futa</button></td></tr>`).join('')}</table>`:'<div class="empty">Hakuna matumizi bado.</div>';
+}
+
+/* ===== PASSWORD-RESET RETURN ===== */
+async function handlePasswordRecovery(){
+  const hash=window.location.hash||'';
+  if(hash.includes('type=recovery')){
+    switchAuthTab('forgot');
+    document.getElementById('forgotStep1').style.display='none';
+    document.getElementById('forgotStep2').style.display='block';
+    showAuthInfo('Weka nenosiri jipya hapa.');
+  }
+}
+
+/* ===== INIT ===== */
+(async function init(){
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    sb.auth.onAuthStateChange(async (event,session)=>{
+      if(event==='SIGNED_OUT'){currentUser=null;currentProfile=null;showAuth();}
+      else if(event==='PASSWORD_RECOVERY'){switchAuthTab('forgot');document.getElementById('forgotStep1').style.display='none';document.getElementById('forgotStep2').style.display='block';showAuthInfo('Weka nenosiri jipya hapa.');}
+      else if(session && !currentUser){try{await loadSession(session);}catch(e){console.error(e);showAuthError(authError(e));}}
+    });
+    if(session) await loadSession(session); else showAuth();
+    await handlePasswordRecovery();
+  }catch(e){console.error(e);showAuthError(authError(e,'Imeshindikana kuanzisha Supabase. Hakikisha URL na anon key ni sahihi.'));}
+})();
+
+</script>
+</body>
+</html>
